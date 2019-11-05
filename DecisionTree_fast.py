@@ -14,7 +14,7 @@ class _Node(object):
         self.threshold    = None #分割に用いる閾値
         self.label        = None #予測値（ラベル番号)
         self.is_leaf      = False #現在のノードが葉ノードかどうか
-        self.info_fain = 0.0
+        self.info_fain = 0.0 #情報利得
 
         
     def split_node(self, X, y, depth):
@@ -50,22 +50,24 @@ class _Node(object):
             
         #どの変数から見ていくかscikitの仕様と合わせている
         #（同じ情報利得が得られる変数が複数ある時に効いてくる）
+        #必要か不明
         f_loop_order = np.random.permutation(num_features).tolist()
         
         #初期化
         if self.criterion == "mse":
-            y_sum = np.sum(y) 
-        #elif self.criterion == "gini" or self.criterion == "entropy":        
+            y_sum = np.sum(y)     
         else:
             class_count = {i: len(y[y==i]) for i in np.unique(y)}
-            left_class = np.empty(num_class, int)
-            right_class = np.empty(num_class, int)
             
+            left_class = np.empty(num_class, int)
+            right_class = np.empty(num_class, int)      
             tmp_class =  np.empty(num_class, int)
+            
             for i in range(num_class):
                 tmp_class[i] = class_count[i]
             val = self.criterion_func(tmp_class, num_samples)
         
+        #分割点探索
         for f in f_loop_order:
             
             if self.criterion == "mse":
@@ -73,8 +75,6 @@ class _Node(object):
                 right_sum = y_sum
                 left_num = 0
                 right_num = num_samples
-                
-            #elif self.criterion == "gini"　or self.criterion == "entropy":
             else:
                 for i in range(num_class):
                     left_class[i] = 0
@@ -87,6 +87,7 @@ class _Node(object):
             while i < num_samples-1:
                 idx = sort_idx[i]
 
+                #回帰の場合
                 if self.criterion == "mse":
                     left_sum += y[idx]
                     right_sum -= y[idx]
@@ -98,6 +99,7 @@ class _Node(object):
                         right_sum -= y[sort_idx[i+1]]
                         i += 1
                         
+                #分類の場合
                 else:
                     left_class[y[idx]] += 1
                     right_class[y[idx]] -= 1
@@ -108,6 +110,7 @@ class _Node(object):
                         right_class[y[sort_idx[i+1]]] -= 1
                         i += 1
                     
+                #最後のデータに到達した時
                 if i is num_samples-1:
                     break
                     
@@ -115,6 +118,7 @@ class _Node(object):
                 left_num = i + 1
                 right_num = num_samples - left_num
 
+                #左右に分割できない時
                 if left_num is 0 or right_num is 0:
                     continue
                     
@@ -124,7 +128,7 @@ class _Node(object):
                 else:
                     info_gain = val - float(left_num) / float(num_samples) * self.criterion_func(left_class, left_num) - float(right_num) / float(num_samples) * self.criterion_func(right_class, right_num)
                     
-                    
+                #情報利得の更新
                 if self.info_gain < info_gain:
                     self.info_gain = info_gain
                     self.feature = f
@@ -221,4 +225,3 @@ class DecisionTreeR(BaseEstimator, RegressorMixin):
             pred.append(self.tree.predict(s))
         return np.array(pred)
     
-
